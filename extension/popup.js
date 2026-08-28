@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Muhammad Al-Muzahid
+
 /**
  * Popup: the only consent surface. It renders status, owns the settings, and arms
  * the destructive action behind a deliberate second click.

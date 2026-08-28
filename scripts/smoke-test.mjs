@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Muhammad Al-Muzahid
+
 /**
  * Static + stubbed smoke tests. No dependencies, no browser, no network.
  *
@@ -249,6 +252,63 @@ check("onInstalled seeds settings without clobbering existing ones", () => {
   const env = makeSandbox();
   vm.runInContext(backgroundSrc, vm.createContext(env.sandbox), { filename: "background.js" });
   equal(env.installed.length, 1, "onInstalled listener count");
+});
+
+console.log("licence and store material");
+
+// The project is open source *and* his: MIT grants the freedom, the copyright line
+// names the author, and both have to appear in every shipped file for either to
+// mean anything. A file that loses its header still runs, so nothing but a check
+// notices.
+check("every shipped source file carries the MIT header in the author's name", () => {
+  const files = [
+    "extension/content.js", "extension/background.js", "extension/popup.js",
+    "extension/popup.html", "extension/popup.css",
+    "scripts/smoke-test.mjs", "scripts/make-icons.py",
+  ];
+  for (const file of files) {
+    const head = readFileSync(join(root, file), "utf8").split("\n").slice(0, 4).join("\n");
+    assert(head.includes("SPDX-License-Identifier: MIT"), `${file} is missing its SPDX line`);
+    assert(head.includes("Copyright (c) 2026 Muhammad Al-Muzahid"), `${file} is missing its copyright line`);
+  }
+  const licence = readFileSync(join(root, "LICENSE"), "utf8");
+  assert(licence.startsWith("MIT License"), "LICENSE is not the MIT text");
+  assert(licence.includes("Copyright (c) 2026 Muhammad Al-Muzahid"), "LICENSE does not name the author");
+  assert(readFileSync(join(root, "README.md"), "utf8").includes("© Muhammad Al-Muzahid"), "README drops the attribution");
+  equal(pkg.license, "MIT", "package.json license");
+  assert(pkg.author.includes("Muhammad Al-Muzahid"), "package.json author");
+});
+
+// The submission answers are only worth having if they still describe the package.
+// Each limb here is a claim the listing makes that the manifest could quietly
+// contradict: the summary length Google enforces, the permission set the
+// justifications cover, and the storage keys the privacy policy enumerates.
+check("the Web Store material still describes this manifest", () => {
+  const privacy = readFileSync(join(root, "docs/PRIVACY.md"), "utf8");
+  const listing = readFileSync(join(root, "docs/STORE_LISTING.md"), "utf8");
+  assert(manifest.description.length <= 132, `description is ${manifest.description.length} characters, over the 132 the store allows`);
+  // The listing prose is wrapped for reading, so compare it with its line breaks
+  // flattened rather than forcing one long line into the document.
+  const flat = (text) => text.replace(/\s+/g, " ");
+  assert(flat(listing).includes(flat(manifest.description)), "the listing summary and the manifest description have drifted apart");
+  // Matched as a code span rather than as a bare substring: "tabs" occurs inside
+  // ordinary prose about tabs, so a plain includes() would let a newly added
+  // permission pass unjustified.
+  for (const permission of manifest.permissions) {
+    assert(listing.includes(`\`${permission}\``), `no justification written for ${permission}`);
+    assert(privacy.includes(`\`${permission}\``), `the privacy policy does not account for ${permission}`);
+  }
+  for (const origin of manifest.host_permissions) {
+    assert(listing.includes(origin), `no justification written for ${origin}`);
+    assert(privacy.includes(origin), `the privacy policy does not account for ${origin}`);
+  }
+  for (const key of ["batchSize", "maxBatches", "dryRun"]) {
+    assert(privacy.includes(key), `the privacy policy does not list the ${key} setting`);
+  }
+  assert(privacy.includes("collects nothing"), "the privacy policy no longer states that nothing is collected");
+  assert(!privacy.includes("analytics,") || privacy.includes("no analytics"), "the privacy policy mentions analytics ambiguously");
+  assert(contentSrc.includes("PERMANENT_DELETE_DIALOG") && privacy.includes("PERMANENT_DELETE_DIALOG"),
+    "the privacy policy's permanence claim is not tied to the code");
 });
 
 console.log(`\n${checks - failures}/${checks} checks passed`);

@@ -27,6 +27,18 @@ version published as source.
   carries every id the popup script reads, and loads both scripts against a stubbed
   `chrome`/DOM to exercise ping, diagnostics and status handling.
 - GitHub Actions workflow that runs the suite and attaches a loadable ZIP to tags.
+- **MIT header in every shipped file** — an `SPDX-License-Identifier` line and the
+  copyright line, so each file states its own terms and its author.
+- **`docs/PRIVACY.md`** — the privacy policy: nothing collected, nothing
+  transmitted, the four locally stored values enumerated, and what the diagnostics
+  snapshot does and does not contain.
+- **`docs/STORE_LISTING.md`** — the Chrome Web Store submission answers: single
+  purpose, a justification per permission, the data-usage disclosure, the listing
+  copy and the screenshot set.
+- Two more `npm test` checks: every shipped file carries the licence header, and
+  the store material still describes the manifest it claims to describe — summary
+  length, one justification per declared permission, and the storage keys the
+  privacy policy enumerates.
 
 ### Changed
 - **The consent gate no longer uses `window.confirm`.** Dialogs raised from an

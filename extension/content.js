@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Muhammad Al-Muzahid
+
 /**
  * Content script: drives Google Photos' own selection and "Move to Trash" UI.
  *

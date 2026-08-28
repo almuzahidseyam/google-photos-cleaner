@@ -121,21 +121,35 @@ anything destructive is allowed.
 `docs/ARCHITECTURE.md` explains how the selection loop, the fail-closed rule and the
 message flow actually work.
 
+## Privacy
+
+Nothing is collected and nothing is transmitted. There is no account, no analytics,
+no remote code and no network request of any kind — the extension stores four values
+locally (batch size, batch limit, the dry-run flag and the last run's status) and
+reads only the structure of the Google Photos page in front of you. The diagnostics
+snapshot you can copy for a bug report carries no photo data, no filenames and
+nothing identifying your account. [docs/PRIVACY.md](docs/PRIVACY.md) states all of
+it in full, permission by permission.
+
+Not on the Chrome Web Store yet; [docs/STORE_LISTING.md](docs/STORE_LISTING.md)
+holds the submission material for when it is.
+
 ## Development
 
 No dependencies and no build step. The extension is plain ES2022 loaded directly by
 Chrome.
 
 ```bash
-npm test                     # 17 checks: manifest, packaging, popup markup, stubbed runtime
+npm test                     # 19 checks: manifest, packaging, popup markup, stubbed runtime, licence and store material
 python3 scripts/make-icons.py   # regenerate the icon set (needs Pillow)
 ```
 
 `npm test` runs offline: it cross-checks `manifest.json` against `package.json` and
 `CHANGELOG.md`, asserts every file the manifest references exists, verifies the popup
 markup declares every id `popup.js` reaches for, confirms every `fail()` code has a
-recovery hint in the UI, and loads both `content.js` and `background.js` against a
-stubbed `chrome`/DOM to exercise ping, diagnostics and status handling.
+recovery hint in the UI, loads both `content.js` and `background.js` against a
+stubbed `chrome`/DOM to exercise ping, diagnostics and status handling, and holds the
+licence headers and the store material against the manifest they describe.
 
 Each check was proven by reintroducing the bug it exists to catch and confirming the
 suite goes red — see the mutation cases listed in `docs/ARCHITECTURE.md`.
@@ -146,7 +160,7 @@ extension/        the extension itself; this is what Load unpacked wants
   content.js      the selection and Trash loop, fail-closed
   background.js   service worker; owns persisted status
   popup.*         the only consent surface
-docs/             safety model and architecture notes
+docs/             safety model, architecture notes, privacy policy, store material
 scripts/          test suite and icon generator
 ```
 

@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Muhammad Al-Muzahid
+
 """Generate the extension's PNG icons at 16/32/48/128 px.
 
 Drawn once at 512 px and downsampled with LANCZOS so the small sizes stay crisp.
