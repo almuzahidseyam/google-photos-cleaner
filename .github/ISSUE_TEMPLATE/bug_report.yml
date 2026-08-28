@@ -1,0 +1,64 @@
+name: Compatibility or bug report
+description: Something stopped working, or an error code appeared in the popup.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Google can change the Photos DOM without notice, so most reports here are
+        compatibility reports. The diagnostics snapshot is by far the most useful
+        thing you can attach — it describes page structure only, and contains no
+        photo data, no filenames and nothing identifying your account.
+
+  - type: input
+    id: code
+    attributes:
+      label: Error code shown in the popup
+      placeholder: NO_TRASH_BUTTON
+    validations:
+      required: false
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you pressed, what the popup said, and what the page did.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: step
+    attributes:
+      label: Which step failed
+      options:
+        - Test safely
+        - Dry run
+        - Move all to Trash
+        - The popup would not open or connect
+    validations:
+      required: true
+
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics
+      description: Popup → Settings → Copy diagnostics, then paste here.
+      render: json
+    validations:
+      required: false
+
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and version
+      placeholder: Chrome 141 on Windows 11
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: backup
+    attributes:
+      label: Confirmation
+      options:
+        - label: I have a verified backup of the library I was working on.
+          required: false

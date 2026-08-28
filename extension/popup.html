@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Google Photos Cleaner</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <main>
+    <header class="head">
+      <img src="icons/icon48.png" alt="" width="28" height="28">
+      <div>
+        <h1>Google Photos Cleaner</h1>
+        <p id="page" class="muted">Checking Google Photos…</p>
+      </div>
+    </header>
+
+    <section class="status-box" aria-live="polite">
+      <div class="status-line">
+        <span id="dot" class="dot neutral"></span>
+        <strong id="state">Not tested</strong>
+        <span id="elapsed" class="elapsed"></span>
+      </div>
+      <p id="message">Press Test first. It will not delete a photo.</p>
+      <p id="hint" class="hint" hidden></p>
+    </section>
+
+    <button id="test" class="test">1. Test safely</button>
+    <button id="start" class="delete" disabled>2. Move all to Trash</button>
+
+    <div class="row">
+      <button id="pause" class="small">Pause / Resume</button>
+      <button id="stop" class="small stop">Stop</button>
+    </div>
+
+    <section class="stats">
+      <div><b id="selected">0</b><span>selected</span></div>
+      <div><b id="deleted">0</b><span>trashed</span></div>
+      <div><b id="batches">0</b><span>batches</span></div>
+    </section>
+
+    <details id="settings">
+      <summary>Settings</summary>
+      <div class="field">
+        <label for="batchSize">Batch size</label>
+        <select id="batchSize">
+          <option value="50">50</option>
+          <option value="100">100</option>
+          <option value="250">250</option>
+          <option value="500">500</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="maxBatches">Stop after</label>
+        <select id="maxBatches">
+          <option value="0">No limit</option>
+          <option value="1">1 batch</option>
+          <option value="5">5 batches</option>
+          <option value="10">10 batches</option>
+          <option value="50">50 batches</option>
+        </select>
+      </div>
+      <label class="check"><input id="dryRun" type="checkbox"> Dry run — count and verify the dialog, delete nothing</label>
+      <button id="diagnose" class="small">Copy diagnostics</button>
+    </details>
+
+    <p class="note">Items go to Google Photos' Trash, where Google keeps them for 60 days. This extension never empties Trash. Keep the tab open and do not click the gallery while it runs.</p>
+  </main>
+  <script src="popup.js"></script>
+</body>
+</html>

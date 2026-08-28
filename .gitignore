@@ -1,0 +1,22 @@
+# The project has no dependencies; node_modules should never appear.
+node_modules/
+package-lock.json
+
+# Build artefacts from the release workflow.
+dist/
+*.zip
+
+# Test-harness leftovers, in case a mutation run is interrupted.
+*.mutation-backup
+
+# Python bytecode from scripts/make-icons.py.
+__pycache__/
+*.py[cod]
+
+# OS and editor noise.
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.swp

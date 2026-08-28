@@ -1,0 +1,20 @@
+{
+  "name": "google-photos-cleaner",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Chrome extension that bulk-moves your own Google Photos items to Trash through the site's normal UI, behind a live compatibility test and an optional dry run.",
+  "license": "MIT",
+  "author": "Muhammad Al-Muzahid",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/almuzahidseyam/google-photos-cleaner.git"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "node scripts/smoke-test.mjs",
+    "icons": "python3 scripts/make-icons.py"
+  }
+}

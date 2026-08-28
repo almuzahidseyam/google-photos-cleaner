@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run the offline suite
+        run: npm test
+
+      - name: Package the loadable extension
+        run: |
+          version=$(node -p "require('./extension/manifest.json').version")
+          mkdir -p dist
+          cd extension
+          zip -r "../dist/google-photos-cleaner-${version}.zip" . -x '*/.*'
+          cd ..
+          ls -l dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: extension-zip
+          path: dist/*.zip
+
+      - name: Attach the ZIP to the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.zip
+          body_path: CHANGELOG.md
