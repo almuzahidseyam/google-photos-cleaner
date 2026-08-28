@@ -38,6 +38,17 @@ function assert(cond, message) {
   if (!cond) throw new Error(message);
 }
 
+async function checkAsync(name, fn) {
+  checks += 1;
+  try {
+    await fn();
+    console.log(`  ok    ${name}`);
+  } catch (e) {
+    failures += 1;
+    console.log(`  FAIL  ${name}\n        ${e.message}`);
+  }
+}
+
 function equal(actual, expected, message) {
   if (actual !== expected) {
     throw new Error(`${message} (expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)})`);
@@ -106,7 +117,7 @@ check("popup does not use window.confirm as its consent gate", () =>
  * while answering GPC_PING / GPC_DIAGNOSE / GPC_STATUS is implemented; anything
  * that needs Google's real markup is out of reach offline by definition.
  */
-function makeSandbox({ pathname = "/" } = {}) {
+function makeSandbox({ pathname = "/", lang = null } = {}) {
   const storage = {};
   const listeners = [];
   const installed = [];
@@ -130,6 +141,8 @@ function makeSandbox({ pathname = "/" } = {}) {
   }
 
   const documentElement = new HTMLElement("html");
+  // Only `lang` is answered: it is what the English-only permanence guard reads.
+  documentElement.getAttribute = name => (name === "lang" ? lang : null);
   const body = new HTMLElement("body");
 
   const sandbox = {
@@ -233,6 +246,59 @@ check("every fail() code has a hint in popup.js", () => {
   assert(missing.length === 0, `codes without a popup hint: ${missing.join(", ")}`);
 });
 
+// docs/SAFETY.md is the document a user is pointed at when a run stops. A code that
+// exists in the code but not in that table leaves them reading an error name with
+// nothing to look it up in.
+check("every fail() code is documented in docs/SAFETY.md", () => {
+  const safety = readFileSync(join(root, "docs/SAFETY.md"), "utf8");
+  const codes = [...new Set([...contentSrc.matchAll(/fail\("([A-Z_]+)"/g)].map(m => m[1]))];
+  const missing = codes.filter(c => !safety.includes(`\`${c}\``));
+  assert(missing.length === 0, `codes missing from the safety table: ${missing.join(", ")}`);
+});
+
+// The single most dangerous line this project could grow back is a fallback that
+// picks a dialog button by position or by how many there are. An earlier version had
+// one, and outside English it would have clicked a permanent-deletion confirmation
+// that nothing had read. This check exists to keep it deleted.
+check("the confirm button is chosen by its own label, never by position or count", () => {
+  const from = contentSrc.indexOf("function findConfirmButton");
+  assert(from > 0, "findConfirmButton is gone");
+  const rest = contentSrc.slice(from);
+  const fn = rest.slice(0, rest.indexOf("\n  }") + 4);
+  assert(/labelMatches\(b, \/\^\(move to trash\|move to bin\)\$\/\)/.test(fn),
+    "the unambiguous Move to Trash label is no longer matched exactly");
+  assert(!/buttons\s*\[/.test(fn), "findConfirmButton indexes into the button list");
+  assert(!/buttons\.length\s*(===|==|>|>=|<|<=)\s*\d/.test(fn),
+    "findConfirmButton branches on how many buttons the dialog has");
+  const gate = fn.indexOf("uiLanguageIsEnglish() === true && !dialogLooksPermanent(dialog)");
+  const bareDelete = fn.indexOf("/^delete$/");
+  assert(gate > 0, "the bare Delete path is no longer gated on a declared-English page and a non-permanent dialog");
+  assert(bareDelete > gate, "the bare Delete match sits outside the language and permanence gate");
+});
+
+// A guard that cannot read the page must not report itself as satisfied, so the
+// language it read is part of the diagnostics snapshot and of the refusal.
+await checkAsync("a non-English page is refused rather than run half-blind", async () => {
+  const en = makeSandbox({ lang: "en-GB" });
+  vm.runInContext(contentSrc, vm.createContext(en.sandbox), { filename: "content.js" });
+  equal(dispatch(en.listeners, { type: "GPC_DIAGNOSE" }).diagnostics.uiLanguageIsEnglish, true,
+    "en-GB read as English");
+
+  const other = makeSandbox({ lang: "bn" });
+  vm.runInContext(contentSrc, vm.createContext(other.sandbox), { filename: "content.js" });
+  const d = dispatch(other.listeners, { type: "GPC_DIAGNOSE" }).diagnostics;
+  equal(d.uiLanguage, "bn", "reported page language");
+  equal(d.uiLanguageIsEnglish, false, "bn read as English");
+
+  dispatch(other.listeners, { type: "GPC_TEST" });
+  await new Promise(r => setTimeout(r, 60));
+  const status = other.sent.filter(m => m.type === "GPC_STATUS").at(-1);
+  assert(status, "the test reported no status at all");
+  equal(status.payload.state, "error", "reported state");
+  equal(status.payload.code, "UNSUPPORTED_UI_LANGUAGE", "reported code");
+  equal(status.payload.compatible, false, "reported compatibility");
+});
+
 console.log("service worker, stubbed");
 
 check("GPC_STATUS is normalised, stored and re-broadcast", () => {
@@ -252,6 +318,28 @@ check("onInstalled seeds settings without clobbering existing ones", () => {
   const env = makeSandbox();
   vm.runInContext(backgroundSrc, vm.createContext(env.sandbox), { filename: "background.js" });
   equal(env.installed.length, 1, "onInstalled listener count");
+});
+
+console.log("naming and branding");
+
+// Google's branding rules let a third-party product say what it works with, but not
+// take a Google trademark as its own name. The distinctive word has to come first and
+// the mark has to appear only in the "for Google Photos" compatibility phrasing. The
+// name also has to be the same name everywhere, or the store listing and the package
+// stop describing each other.
+check("the name states compatibility instead of leading with a Google trademark", () => {
+  assert(!/^google/i.test(manifest.name), `"${manifest.name}" leads with a Google trademark`);
+  assert(!/^google/i.test(manifest.short_name), `"${manifest.short_name}" leads with a Google trademark`);
+  assert(/\bfor google photos$/i.test(manifest.name),
+    `"${manifest.name}" does not use the "for Google Photos" compatibility phrasing`);
+  equal(manifest.action.default_title, manifest.name, "the toolbar tooltip");
+  assert(popupHtml.includes(`<title>${manifest.name}</title>`), "popup.html has a different title");
+  equal(pkg.name, manifest.name.toLowerCase().replace(/\s+/g, "-"), "the npm package name");
+  for (const file of ["README.md", "docs/PRIVACY.md", "docs/STORE_LISTING.md"]) {
+    assert(readFileSync(join(root, file), "utf8").includes(manifest.name), `${file} still uses an older name`);
+  }
+  assert(readFileSync(join(root, "docs/STORE_LISTING.md"), "utf8").includes(`- **Name**: ${manifest.name}`),
+    "the store listing's Name field does not match the manifest");
 });
 
 console.log("licence and store material");

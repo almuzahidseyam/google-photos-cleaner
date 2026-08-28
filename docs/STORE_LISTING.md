@@ -10,7 +10,7 @@ true of the code, change the code or change the sentence.
    <https://chrome.google.com/webstore/devconsole> and pay the one-time **$5**
    registration fee. Set the publisher name — it appears under every item you
    publish — and verify the contact email, or the listing cannot go live.
-2. Tag a release (`git tag v1.0.0 && git push origin v1.0.0`). CI zips
+2. Tag a release (`git tag v1.1.0 && git push origin v1.1.0`). CI zips
    `extension/` and attaches it to the release; upload **that** ZIP, so the
    published bytes match a commit you can point at.
 3. The ZIP must contain the manifest at its root. Zipping the repository root
@@ -18,10 +18,23 @@ true of the code, change the code or change the sentence.
 4. Host the privacy policy at a URL you control. [docs/PRIVACY.md](PRIVACY.md)
    on GitHub is a public URL and is acceptable.
 
+## Why the name is what it is
+
+The extension is called **Bulk Trash for Google Photos**. Google's branding rules
+do not allow a Google trademark to be *the* name of a third-party product, but
+they do allow naming the product in plain text to state compatibility — the
+"**for** Google Photos" construction. So the distinctive part comes first and the
+trademark appears only as the thing being worked with. The earlier name led with
+"Google Photos", which invited a rejection for implying association.
+
+The icon follows the same reasoning: it is a bin with two tiles going into it, in
+slate and amber. It deliberately does not reuse Google Photos' pinwheel, its
+colour, or a photo-tile motif.
+
 ## Single purpose
 
-> Google Photos Cleaner has one purpose: to clear a Google Photos library the
-> signed-in user owns, by driving the site's own multi-select and *Move to
+> Bulk Trash for Google Photos has one purpose: to clear a Google Photos library
+> the signed-in user owns, by driving the site's own multi-select and *Move to
 > Trash* controls in batches. It does nothing else — no editing, no downloading,
 > no organising, no other site.
 
@@ -61,7 +74,7 @@ reviewer asks.
 
 ## Listing copy
 
-- **Name**: Google Photos Cleaner
+- **Name**: Bulk Trash for Google Photos
 - **Summary** (132 characters maximum; the manifest description is already within
   the limit and should stay identical to this box): Bulk Move-to-Trash helper for
   your own Google Photos library, gated behind a live compatibility test and an
@@ -98,6 +111,28 @@ controls the signed-in owner can already click, on their own library. Review can
 take days rather than hours, and a first submission is sometimes rejected for a
 listing detail rather than for the code — read the rejection, fix the one thing,
 resubmit.
+
+## Charging for it is no longer a dashboard setting
+
+There is no price field to fill in. Chrome Web Store payments were retired on
+**1 February 2021**; the dashboard can only publish an item as free. Anything
+paid in 2026 is billed outside the store by the developer, through a processor
+such as ExtensionPay, Gumroad, LemonSqueezy or Paddle, with the extension itself
+checking a licence.
+
+That check is the problem, not the payment. A licence check is a network request,
+so it would mean adding an outbound host permission and sending something — an
+email address, a key, a device identifier — to a server. The moment that happens,
+three statements in this repository stop being true: PRIVACY.md's "contacts no
+server", the README's identical claim, and the two smoke checks that assert both.
+A paid build is therefore not a pricing decision but a privacy-posture decision,
+and it needs its own version, its own privacy policy, and its own data
+disclosure on this tab.
+
+The alternative that keeps the current posture intact is to publish free and ask
+for payment where no code has to verify it — a sponsor or donate link in the
+listing description and the README. It collects less money and nothing else
+changes.
 
 ## After publishing
 

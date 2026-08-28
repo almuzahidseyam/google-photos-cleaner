@@ -1,6 +1,6 @@
 <h1 align="center">
   <img src="extension/icons/icon-preview.png" width="88" height="88" alt=""><br>
-  Google Photos Cleaner
+  Bulk Trash for Google Photos
 </h1>
 
 <p align="center">
@@ -52,7 +52,10 @@ items quickly is only a good tool if the archive already exists.
 There is no Web Store listing. Load it unpacked:
 
 1. Download the source — either clone the repository or take the ZIP from
-   [Releases](https://github.com/almuzahidseyam/google-photos-cleaner/releases).
+   [Releases](https://github.com/almuzahidseyam/google-photos-cleaner/releases). The
+   repository keeps its original `google-photos-cleaner` slug so existing clones and
+   links keep working; the extension itself is named **Bulk Trash for Google
+   Photos**.
 2. Open `chrome://extensions/`.
 3. Turn on **Developer mode** (top right).
 4. Click **Load unpacked** and select the **`extension/`** folder — not the
@@ -65,7 +68,9 @@ Opera). Not Firefox: it uses the `chrome.*` MV3 APIs directly.
 ## Use
 
 1. Open the **main Photos grid** — not an album, not Search, not Trash — and wait
-   for thumbnails to appear.
+   for thumbnails to appear. Google Photos must be **in English**: the check that
+   refuses permanent-deletion dialogs reads their wording, so on any other interface
+   language the extension stops rather than run half-blind.
 2. Click the extension icon.
 3. Press **1. Test safely**. It selects a single item, opens the real Trash
    confirmation dialog, verifies that a safe confirmation button exists, then
@@ -100,7 +105,8 @@ confirmation. 500 is fastest; drop it if selection stalls or the tab struggles.
 **Copy diagnostics** puts a read-only JSON snapshot on your clipboard describing
 what the extension can currently see: how many media checkboxes it found, whether
 the Trash button and the native selection counter were located, scroller geometry,
-your browser language. Paste it into an issue; it contains no photo content, no
+the language the page declares itself to be in, your browser language. Paste it into
+an issue; it contains no photo content, no
 filenames and no account identifiers.
 
 ## The honest limitation
@@ -140,16 +146,19 @@ No dependencies and no build step. The extension is plain ES2022 loaded directly
 Chrome.
 
 ```bash
-npm test                     # 19 checks: manifest, packaging, popup markup, stubbed runtime, licence and store material
+npm test                     # 23 checks: manifest, packaging, popup markup, stubbed runtime, naming, licence and store material
 python3 scripts/make-icons.py   # regenerate the icon set (needs Pillow)
 ```
 
 `npm test` runs offline: it cross-checks `manifest.json` against `package.json` and
 `CHANGELOG.md`, asserts every file the manifest references exists, verifies the popup
 markup declares every id `popup.js` reaches for, confirms every `fail()` code has a
-recovery hint in the UI, loads both `content.js` and `background.js` against a
-stubbed `chrome`/DOM to exercise ping, diagnostics and status handling, and holds the
-licence headers and the store material against the manifest they describe.
+recovery hint in the UI and a row in `docs/SAFETY.md`, holds the extension name to
+compatibility phrasing rather than a leading Google trademark, refuses a confirm
+button chosen by position or count, loads both `content.js` and `background.js`
+against a stubbed `chrome`/DOM to exercise ping, diagnostics, status handling and the
+non-English refusal, and holds the licence headers and the store material against the
+manifest they describe.
 
 Each check was proven by reintroducing the bug it exists to catch and confirming the
 suite goes red — see the mutation cases listed in `docs/ARCHITECTURE.md`.

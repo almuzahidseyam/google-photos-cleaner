@@ -62,11 +62,23 @@ tile checkbox to be visibly rendered, and Google keeps them hidden until hover. 
 checkboxes are matched structurally instead: a `[role="checkbox"]` with an `img` or
 `video` within ten ancestors, and not inside a dialog.
 
-**Do not depend on English where it can be avoided.** Labels are read from
-`aria-label`, `title`, `data-tooltip` and text content together, and a locale-agnostic
-structural test backs up every text match. The one place English still matters is
-picking the confirm button out of the dialog; when that fails you get
-`NO_CONFIRM_BUTTON` rather than a wrong click.
+**Read labels one source at a time.** `labelsOf()` returns `aria-label`, `title`,
+`data-tooltip`, `data-tooltip-text` and text content as separate strings, and
+`labelMatches()` tests the pattern against each. Joining them first — the earlier
+approach — meant a button carrying both `aria-label="Move to trash"` and the text
+"Move to trash" read as `"move to trash move to trash"`, which no anchored pattern
+can match.
+
+**Be honest about the one English dependence.** Everything about finding and
+selecting tiles is locale-agnostic, but the permanence test in
+`dialogLooksPermanent()` is English phrases, and it is the only thing standing
+between a run and a permanent-deletion dialog. So rather than let it silently pass
+on a page it cannot read, the compatibility test reads `<html lang>` and refuses a
+non-English interface with `UNSUPPORTED_UI_LANGUAGE`. Inside a dialog, only *Move to
+Trash* / *Move to Bin* is accepted unconditionally; a bare *Delete* additionally
+requires that declared-English page. There is no fallback that picks a button by
+position or by how many buttons the dialog has — when nothing matches, the run stops
+with `NO_CONFIRM_BUTTON` rather than clicking.
 
 **Pick the right `[role="main"]`.** Photos can render more than one. `chooseMain()`
 scores candidates by how many media checkboxes, checkboxes and media elements they
@@ -91,6 +103,17 @@ only elements that are actually taller than their viewport and have a scrolling
    tiles, repeat.
 5. Stop at the target, or when six consecutive passes make no progress, or at the
    bottom of the list.
+
+The count is `max(native readout, tiles this loop watched turn checked)`, not the
+readout alone. If `.rtExYb` is renamed, the readout reads zero, the loop never
+believes it reached `target`, and "stop after one batch" quietly becomes thousands of
+items — so the loop counts what it did off the DOM as well and trusts whichever
+number is higher.
+
+`clearSelection()` prefers Google's own exit control (*Clear selection*, *Cancel
+selection*, and the variants around them), then Escape — but only when no dialog is
+open, since Escape would otherwise close the dialog instead — and only then falls
+back to unclicking tiles one by one.
 
 Then `deleteSelected()` opens the Trash dialog, verifies a safe confirmation exists,
 and either clicks it or — in dry-run mode — dismisses it. Between batches the run
@@ -122,13 +145,19 @@ version threw there, and a completed run read as a crash.
 The extension can only be exercised for real against Google's live DOM, so `npm test`
 covers what is checkable offline: the manifest against `package.json` and
 `CHANGELOG.md`, the existence of every referenced file, the permission surface, the
-popup's ids against the popup script, every `fail()` code against its hint, and both
-scripts loaded in a stubbed `chrome`/DOM context to exercise ping, diagnostics, the
-double-injection guard, Trash-view detection and status normalisation.
+name against Google's branding rules, the popup's ids against the popup script, every
+`fail()` code against both its popup hint and its row in `docs/SAFETY.md`, the absence
+of any confirm-button fallback that guesses by position or count, and both scripts
+loaded in a stubbed `chrome`/DOM context to exercise ping, diagnostics, the
+double-injection guard, Trash-view detection, the non-English refusal and status
+normalisation. Twenty-three checks.
 
 Every check was proven by reintroducing the bug it exists to catch and confirming the
 suite went red — manifest version drift, a missing icon path, `<all_urls>` in the
 manifest, an extra permission, a renamed popup id, `window.confirm` returning, the
 double-injection guard removed, an undocumented error code, Trash-view detection
-disabled, and status defaults not being filled in. Ten mutations, ten red runs, every
-file restored byte-for-byte afterwards.
+disabled, status defaults not being filled in, a name leading with a Google
+trademark, the npm name drifting from the manifest name, the store listing's Name
+field left stale, the two-button confirm fallback reinstated, an error code missing
+from `docs/SAFETY.md`, and the non-English refusal deleted. Sixteen mutations, sixteen
+red runs, every file restored byte-for-byte afterwards.

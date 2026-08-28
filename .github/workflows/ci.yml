@@ -28,7 +28,7 @@ jobs:
           version=$(node -p "require('./extension/manifest.json').version")
           mkdir -p dist
           cd extension
-          zip -r "../dist/google-photos-cleaner-${version}.zip" . -x '*/.*'
+          zip -r "../dist/bulk-trash-for-google-photos-${version}.zip" . -x '*/.*'
           cd ..
           ls -l dist
 

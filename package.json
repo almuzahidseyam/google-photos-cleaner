@@ -1,6 +1,6 @@
 {
-  "name": "google-photos-cleaner",
-  "version": "1.0.0",
+  "name": "bulk-trash-for-google-photos",
+  "version": "1.1.0",
   "private": true,
   "description": "Chrome extension that bulk-moves your own Google Photos items to Trash through the site's normal UI, behind a live compatibility test and an optional dry run.",
   "license": "MIT",

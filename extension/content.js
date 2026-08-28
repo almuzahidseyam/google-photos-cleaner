@@ -11,6 +11,9 @@
  *      with a named error code instead of guessing at a button.
  *   3. Refuse permanence. A dialog whose text reads as permanent deletion is
  *      dismissed, never confirmed. Emptying Trash is out of scope by design.
+ *   4. Only act on text it can actually read. The permanence test is written in
+ *      English, so the run refuses a page Google has labelled as another
+ *      language rather than pretending the guard still applies.
  *
  * Selectors are structural/ARIA first (`[role="main"]`, `[role="checkbox"]`,
  * `[data-delete-origin]`, `[role="dialog"]`) with Google's obfuscated class names
@@ -99,7 +102,6 @@
     }).catch(() => {});
   }
 
-
   async function waitFor(fn, timeout = STEP_TIMEOUT) {
     const end = Date.now() + timeout;
     while (Date.now() < end && !state.stopped) {
@@ -134,6 +136,48 @@
       el.getAttribute?.("data-tooltip-text"),
       el.textContent
     ].filter(Boolean).join(" "));
+  }
+
+  /**
+   * The same label sources as `textOf`, kept apart instead of joined.
+   * `textOf` is right for "does this text appear anywhere near this element",
+   * but it makes an anchored match unreliable: a button carrying both
+   * aria-label="Move to trash" and the text "Move to trash" reads as
+   * "move to trash move to trash", which `/^move to trash$/` rejects. Every
+   * exact-label decision below therefore tests each source on its own.
+   */
+  function labelsOf(el) {
+    if (!el) return [];
+    return [
+      el.getAttribute?.("aria-label"),
+      el.getAttribute?.("title"),
+      el.getAttribute?.("data-tooltip"),
+      el.getAttribute?.("data-tooltip-text"),
+      el.textContent
+    ].map(norm).filter(Boolean);
+  }
+
+  function labelMatches(el, re) {
+    return labelsOf(el).some(label => re.test(label));
+  }
+
+  /**
+   * The language Google labelled the page with, or "" when it did not.
+   *
+   * Everything that decides whether a dialog is safe to confirm is written in
+   * English, so the extension has to know whether English is what it is looking
+   * at. `null` means "unlabelled": that is not treated as English, but it is not
+   * treated as a hard stop either, because the label matchers themselves already
+   * fail closed.
+   */
+  function uiLanguage() {
+    return norm(document.documentElement?.getAttribute?.("lang") || "");
+  }
+
+  function uiLanguageIsEnglish() {
+    const tag = uiLanguage();
+    if (!tag) return null;
+    return tag === "en" || tag.startsWith("en-");
   }
 
   function enabled(el) {
@@ -316,9 +360,9 @@
     if (enabled(structural)) return structural;
 
     const buttons = [...document.querySelectorAll("button")].filter(enabled);
-    const exact = buttons.find(b => /^(move to trash|move to bin|trash|delete)$/i.test(textOf(b)));
+    const exact = buttons.find(b => labelMatches(b, /^(move to trash|move to bin|trash|delete)$/));
     if (exact) return exact;
-    return buttons.find(b => /move to trash|move to bin|trash|delete/i.test(textOf(b)) && !/album|shared|permanent|forever/i.test(textOf(b))) || null;
+    return buttons.find(b => /move to trash|move to bin|trash|delete/.test(textOf(b)) && !/album|shared|permanent|forever/.test(textOf(b))) || null;
   }
 
   function dialogLooksPermanent(dialog) {
@@ -326,18 +370,33 @@
     return /delete permanently|permanently delete|delete forever|permanent deletion|can't be restored|cannot be restored/.test(t);
   }
 
+  /**
+   * The confirmation button inside the Trash dialog — the one click in this
+   * extension that actually destroys something. It is therefore the strictest
+   * matcher here: an exact, known-safe label or nothing.
+   *
+   * There used to be a structural fallback that returned the second of two text
+   * buttons whenever `dialogLooksPermanent()` was false. That was unsafe outside
+   * English, because `dialogLooksPermanent()` only knows English phrasing: on a
+   * localised Google Photos the permanence guard read "not permanent" for every
+   * dialog while the fallback happily clicked. Returning null and surfacing
+   * NO_CONFIRM_BUTTON is the correct behaviour there — the run stops instead of
+   * confirming something nobody read.
+   */
   function findConfirmButton(dialog) {
     if (!dialog) return null;
     const buttons = [...dialog.querySelectorAll("button")].filter(enabled);
     if (!buttons.length) return null;
 
-    // English Google Photos UI (as in the user's screenshot) — safest explicit matches first.
-    const preferred = buttons.find(b => /^(move to trash|move to bin|delete)$/i.test(textOf(b)));
-    if (preferred) return preferred;
+    const trash = buttons.find(b => labelMatches(b, /^(move to trash|move to bin)$/));
+    if (trash) return trash;
 
-    // Structural fallback only if the dialog has the ordinary two-action Material layout.
-    const textButtons = buttons.filter(b => textOf(b).length > 0);
-    if (textButtons.length === 2 && !dialogLooksPermanent(dialog)) return textButtons[1];
+    // A bare "Delete" is ambiguous — it is also how a permanent-deletion dialog
+    // labels its confirmation — so it is accepted only when the permanence test
+    // is in a position to have read the dialog, i.e. the page says it is English.
+    if (uiLanguageIsEnglish() === true && !dialogLooksPermanent(dialog)) {
+      return buttons.find(b => labelMatches(b, /^delete$/)) || null;
+    }
     return null;
   }
 
@@ -350,7 +409,7 @@
     const dlg = currentDialog();
     if (dlg) {
       const buttons = [...dlg.querySelectorAll("button")].filter(enabled);
-      const cancel = buttons.find(b => /^(cancel|no|not now|dismiss|close)$/i.test(textOf(b)));
+      const cancel = buttons.find(b => labelMatches(b, /^(cancel|no|not now|dismiss|close)$/));
       if (cancel) {
         await plainClick(cancel);
         if (await waitFor(() => !currentDialog(), 2500)) return true;
@@ -364,7 +423,36 @@
     return !!(await waitFor(() => !currentDialog(), 3000));
   }
 
+  /** Google's own control for leaving selection mode, when it can be identified. */
+  function findExitSelectionButton() {
+    const buttons = [...document.querySelectorAll("button")].filter(enabled);
+    return buttons.find(b => labelMatches(b, /^(clear selection|cancel selection|exit selection|close selection|deselect all)$/)) || null;
+  }
+
+  /**
+   * Leaves selection mode. Un-clicking tiles one at a time cannot clear a
+   * 500-item batch inside any sensible number of passes, so an aborted test used
+   * to leave the gallery sitting in selection mode; Google's own exit control and
+   * Escape are tried first, and the per-tile loop is only the last resort.
+   */
   async function clearSelection() {
+    if (nativeSelectedCount() === 0) return true;
+
+    const exit = findExitSelectionButton();
+    if (exit) {
+      await plainClick(exit);
+      if (await waitFor(() => nativeSelectedCount() === 0, 2500)) return true;
+    }
+
+    // Only safe once no dialog is open, or Escape would close the dialog instead.
+    if (!currentDialog()) {
+      for (const target of [document.activeElement, document.body, document]) {
+        if (!target?.dispatchEvent) continue;
+        target.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", code: "Escape", keyCode: 27, bubbles: true, cancelable: true }));
+      }
+      if (await waitFor(() => nativeSelectedCount() === 0, 2000)) return true;
+    }
+
     for (let pass = 0; pass < 4; pass++) {
       const checked = mediaCheckboxes(chooseMain(), "true");
       if (!checked.length || nativeSelectedCount() === 0) return true;
@@ -379,6 +467,10 @@
   async function compatibilityTest(silent = false) {
     if (!isOnPhotos()) fail("NOT_ON_PHOTOS", "Open photos.google.com first.");
     if (isOnTrashView()) fail("ON_TRASH_VIEW", "Open the main Photos view, not Trash.");
+    if (uiLanguageIsEnglish() === false) {
+      fail("UNSUPPORTED_UI_LANGUAGE",
+        `This page is in "${uiLanguage()}", and the confirmation dialog can only be read in English. Set Google Photos to English before running anything.`);
+    }
     if (state.running && !silent) fail("ALREADY_RUNNING", "Deletion is already running.");
 
     if (!silent) report("testing", "Finding a real photo on the current Google Photos page…", { compatible: false });
@@ -445,12 +537,19 @@
     let stalls = 0;
     let lastScroll = -1;
     let lastCount = nativeSelectedCount();
+    // Tiles this loop has watched turn checked, counted off the DOM rather than
+    // off Google's readout. If `.rtExYb` is renamed, nativeSelectedCount() falls
+    // back to counting rendered checkboxes, which undercounts badly once the grid
+    // has virtualised the earlier rows away — and an undercount means the loop
+    // never reaches `target` and keeps selecting. "Stop after 1 batch" has to
+    // mean at most one batch even when the counter cannot be read.
+    let observed = 0;
 
     while (!state.stopped) {
       await waitPaused();
       if (state.stopped) return 0;
 
-      let count = nativeSelectedCount();
+      let count = Math.max(nativeSelectedCount(), observed);
       state.selected = count;
       report(state.paused ? "paused" : "running", `Selecting batch… ${count}/${target}`);
       if (count >= target) return count;
@@ -473,10 +572,11 @@
         }
 
         await sleep(180);
-        count = nativeSelectedCount();
+        count = Math.max(nativeSelectedCount(), observed);
 
         // If Google's shift-range handler did not react, fall back to individual tile clicks.
         if (count <= before + (slice.length > 1 ? 1 : 0)) {
+          let clicked = 0;
           for (const cb of slice) {
             if (state.stopped) break;
             await waitPaused();
@@ -484,17 +584,20 @@
               await plainClick(cb);
               await sleep(24);
             }
-            if (nativeSelectedCount() >= target) break;
+            if (cb.getAttribute("aria-checked") === "true") clicked += 1;
+            if (Math.max(nativeSelectedCount(), observed + clicked) >= target) break;
           }
           await sleep(120);
-          count = nativeSelectedCount();
         }
 
+        observed += slice.filter(cb => cb.getAttribute("aria-checked") === "true").length;
+        count = Math.max(nativeSelectedCount(), observed);
         progressed = count > before;
       }
 
       state.selected = count;
       if (count >= target) return count;
+
 
       const beforeScroll = scrollTopOf(scroller);
       const step = Math.max(300, clientHeightOf(scroller) * 0.72);
@@ -521,8 +624,10 @@
    * path — find the button, open the dialog, verify the confirmation exists — and
    * then dismisses instead of confirming, so nothing is deleted.
    */
-  async function deleteSelected({ dryRun = false } = {}) {
-    const selectedBefore = nativeSelectedCount();
+  async function deleteSelected({ dryRun = false, selectedCount = 0 } = {}) {
+    // The caller counted the batch as it built it, off the DOM; trust whichever
+    // number is larger so a renamed counter class cannot under-report the batch.
+    const selectedBefore = Math.max(nativeSelectedCount(), selectedCount);
     if (selectedBefore <= 0) return 0;
 
     const del = await waitFor(findDeleteButton, 6000);
@@ -628,7 +733,7 @@
 
         if (state.dryRun) {
           report("running", `Dry run: verifying the Trash dialog for ${selected.toLocaleString()} selected items…`);
-          const counted = await deleteSelected({ dryRun: true });
+          const counted = await deleteSelected({ dryRun: true, selectedCount: selected });
           state.wouldTrash = counted;
           state.batches = 1;
           state.selected = 0;
@@ -640,7 +745,7 @@
         }
 
         report("running", `Moving ${selected.toLocaleString()} selected items to Trash…`);
-        const moved = await deleteSelected({ dryRun: false });
+        const moved = await deleteSelected({ dryRun: false, selectedCount: selected });
         state.deleted += moved;
         state.batches += 1;
         state.selected = 0;
@@ -678,6 +783,8 @@
       onTrashView: isOnTrashView(),
       userAgent: navigator.userAgent,
       language: navigator.language,
+      uiLanguage: uiLanguage(),
+      uiLanguageIsEnglish: uiLanguageIsEnglish(),
       mainRegions: document.querySelectorAll('[role="main"]').length,
       checkboxesInMain: boxes.length,
       mediaCheckboxes: media.length,
@@ -687,6 +794,7 @@
       nativeCounterFound: !!document.querySelector(".rtExYb"),
       trashButtonFound: !!findDeleteButton(),
       trashButtonStructural: !!document.querySelector('[data-delete-origin] button'),
+      exitSelectionButtonFound: !!findExitSelectionButton(),
       dialogOpen: !!dlg,
       dialogLooksPermanent: dlg ? dialogLooksPermanent(dlg) : null,
       scrollerIsDocument: scroller === document.scrollingElement || scroller === document.documentElement || scroller === document.body,

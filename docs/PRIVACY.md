@@ -1,6 +1,6 @@
 # Privacy policy
 
-**Google Photos Cleaner collects nothing, transmits nothing, and contacts no
+**Bulk Trash for Google Photos collects nothing, transmits nothing, and contacts no
 server of its own.** There is no account, no analytics, no telemetry, no
 third-party service and no remote code. The extension makes no network requests
 at all — every line it runs ships inside the package you installed.
@@ -14,7 +14,7 @@ machine. Nothing leaves the device.
 
 | Key | What it holds |
 | --- | --- |
-| `settings.batchSize` | How many items to select per batch (10–500) |
+| `settings.batchSize` | How many items to select per batch (50–500) |
 | `settings.maxBatches` | Stop after this many batches; `0` means no limit |
 | `settings.dryRun` | Whether the next run should delete nothing |
 | `status` | The last run's state, item and batch counts, elapsed timestamps and, if it stopped, the error code |
@@ -40,7 +40,8 @@ one.
 *Copy diagnostics* exists so a bug report can describe a page the author cannot
 see. It runs only when you press it, and the snapshot it puts on your clipboard
 is a structural summary — counts of regions and checkboxes, whether the Trash
-button was found, whether a dialog is open, scroller dimensions, your settings
+button was found, whether a dialog is open, scroller dimensions, the language the
+page declares itself to be in, your settings
 and the extension version. **No photo data, no filenames, no album names, no
 email address and no account identifier appear in it.** Nothing is sent
 anywhere; pasting it into a report is your decision and your action.

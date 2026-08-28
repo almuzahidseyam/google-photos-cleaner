@@ -15,12 +15,13 @@ const $ = id => document.getElementById(id);
 const HINTS = {
   NOT_ON_PHOTOS: "Open https://photos.google.com/ in this tab.",
   ON_TRASH_VIEW: "Go back to the main Photos grid. Trash is deliberately out of scope.",
+  UNSUPPORTED_UI_LANGUAGE: "Set Google Photos to English (Settings → Language in your Google Account), reload the tab, then test again.",
   NO_MEDIA_CHECKBOX: "Wait for thumbnails to render, then test again. Album, Search and Utilities views are not supported.",
   NO_SELECTION_MODE: "Reload the page, then test again.",
   NO_TRASH_BUTTON: "The toolbar could not be read. Copy diagnostics from Settings and open an issue.",
   NO_DIALOG: "The confirmation flow could not be read. Copy diagnostics from Settings and open an issue.",
   PERMANENT_DELETE_DIALOG: "Google offered permanent deletion, which this extension will not confirm. Handle those items by hand.",
-  NO_CONFIRM_BUTTON: "The dialog buttons could not be read confidently. Try Chrome in English, or copy diagnostics and open an issue.",
+  NO_CONFIRM_BUTTON: "The dialog's confirmation button was not one this extension recognises, so it refused to click anything. Copy diagnostics from Settings and open an issue.",
   BATCH_TIMEOUT: "Google Photos stalled. Reload the page and start again — items already in Trash will not be picked twice.",
   ALREADY_RUNNING: "A run is already in progress. Press Stop first.",
   UNKNOWN: "Copy diagnostics from Settings and open an issue with them."
